@@ -5,7 +5,10 @@ Bitcoin's 1-minute bars are almost all noise (an 8 bps standard deviation per
 minute against a round-trip trading cost near 26 bps), so a bot that trades
 often bleeds fees on every whipsaw. This bot trades rarely: it buys the whole
 cash balance when the 30-minute exponential average crosses above the
-120-minute one (a multi-hour uptrend, not a one-minute wiggle), then holds
+120-minute one (a multi-hour uptrend, not a one-minute wiggle). The cross
+alone can fire on a weak bounce after a drop, so entry also needs two
+confirmations: the close itself above the slow average, and the 60-minute
+momentum positive (the close above the close an hour ago). Then it holds
 while the trend lasts and sells everything the moment the close falls 2%
 below the highest close since entry. After being stopped out it waits at
 least an hour and only re-enters once the price prints a new high above the
@@ -44,6 +47,8 @@ TRAIL_NUM = 9800
 TRAIL_DEN = 10000
 # Bars to wait after a stop-out before a re-entry may be considered.
 COOLDOWN_BARS = 60
+# Lookback for the entry's momentum confirmation, in bars.
+MOMENTUM_BARS = 60
 # Cap on how far a fill may move from the latest close (3%): a 1-minute
 # BTC move that large is far outside the observed range, so this only
 # guards against a freak gap, never a normal fill.
@@ -61,6 +66,8 @@ class PeakRider:
         self.prev_slow = None
         # How many CBBTC closes have been seen.
         self.n_bars = 0
+        # Recent closes, for the momentum confirmation (at most 61 kept).
+        self.recent_closes = []
         # Highest close since the current position was opened.
         self.peak = 0
         # Bar index and peak of the most recent stop-out.
@@ -80,6 +87,9 @@ class PeakRider:
             # No CBBTC bar in this batch: nothing to decide on.
             return []
         self.n_bars += 1
+        self.recent_closes.append(close)
+        if len(self.recent_closes) > MOMENTUM_BARS + 1:
+            self.recent_closes.pop(0)
         if self.fast is None:
             self.fast = close
             self.slow = close
@@ -120,6 +130,14 @@ class PeakRider:
                       and self.prev_fast <= self.prev_slow)
         first_chance = self.n_bars == MIN_BARS and self.fast > self.slow
         if not (crossed_up or first_chance):
+            return []
+        if close <= self.slow:
+            # A cross while the price itself is still below the slow
+            # average is a bounce off a low, not a trend: wait.
+            return []
+        if (len(self.recent_closes) > MOMENTUM_BARS
+                and close <= self.recent_closes[0]):
+            # The last hour must be net up as well.
             return []
         cash = state.cash
         if cash <= 0:
