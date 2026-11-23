@@ -10,7 +10,7 @@ A slow-trend BTC trading bot for make.fun's "Race a BTC trading bot live for 24 
 
 Ride the slow trend, never fight the noise. Bitcoin's 1-minute bars are almost all noise (about 8 bps of standard deviation per minute against a round-trip trading cost near 26 bps), so a bot that trades often bleeds fees on every whipsaw. Peak-Rider trades rarely:
 
-- **Enter:** buy the whole cash balance when the 30-minute exponential average crosses above the 120-minute one — a multi-hour uptrend, not a one-minute wiggle.
+- **Enter:** buy the whole cash balance when the 30-minute exponential average crosses above the 120-minute one — a multi-hour uptrend, not a one-minute wiggle. The cross alone can fire on a weak bounce after a drop, so entry also needs two confirmations: the close itself above the slow average, and the 60-minute momentum positive (the close above the close an hour ago).
 - **Exit:** sell everything the moment the close falls 2% below the highest close since entry (trailing stop).
 - **Re-enter:** after a stop-out, wait at least an hour and only re-enter once the price prints a new high above the peak it was stopped out from, so it never catches a falling knife twice.
 
